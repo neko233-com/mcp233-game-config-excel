@@ -1,0 +1,4 @@
+/dist/
+/coverage.out
+*.xlsx
+!testdata/*.xlsx

@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+      - name: Test
+        run: go test ./...
+      - name: Build release files
+        shell: bash
+        run: |
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -mod=vendor -trimpath -ldflags='-s -w' -o dist/mcp233-game-config-excel-linux-amd64 ./cmd/mcp233-game-config-excel
+          GOOS=windows GOARCH=amd64 go build -mod=vendor -trimpath -ldflags='-s -w' -o dist/mcp233-game-config-excel-windows-amd64.exe ./cmd/mcp233-game-config-excel
+          GOOS=darwin GOARCH=arm64 go build -mod=vendor -trimpath -ldflags='-s -w' -o dist/mcp233-game-config-excel-darwin-arm64 ./cmd/mcp233-game-config-excel
+          sha256sum dist/* > dist/checksums.txt
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes --verify-tag

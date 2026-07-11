@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="mcp233-game-config-excel 离线 Excel 游戏配表 MCP CLI">
+  <title>mcp233-game-config-excel</title>
+  <style>
+    :root { --ink:#102033; --muted:#62748a; --line:#d8e2eb; --paper:#f6f9fc; --accent:#126f8a; --mint:#dff5eb; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:16px/1.6 ui-sans-serif,system-ui,"Microsoft YaHei",sans-serif; }
+    main { width:min(1040px,calc(100% - 36px)); margin:auto; }
+    .hero { margin:42px 0 24px; padding:44px; border-radius:22px; color:#fff; background:linear-gradient(128deg,#083c58,#126f8a 57%,#379f86); box-shadow:0 18px 48px #18425c30; }
+    .hero p { max-width:680px; opacity:.88; font-size:1.1rem; }
+    h1 { margin:0; font-size:clamp(2rem,5vw,3.65rem); letter-spacing:-.06em; }
+    h2 { margin:42px 0 14px; font-size:1.45rem; }
+    h3 { margin:0 0 7px; }
+    .eyebrow { margin:0 0 10px; font:700 .8rem/1 ui-monospace,monospace; letter-spacing:.12em; text-transform:uppercase; color:#9ce9d2; }
+    .badges { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px; }
+    .badge { padding:5px 10px; border:1px solid #ffffff45; border-radius:999px; font-size:.86rem; }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    .card, section { background:#fff; border:1px solid var(--line); border-radius:16px; }
+    .card { padding:22px; }
+    section { padding:26px; }
+    section h2 { margin-top:0; }
+    code, pre { font-family:"Cascadia Code",ui-monospace,SFMono-Regular,Consolas,monospace; }
+    code { padding:2px 5px; border-radius:5px; background:#edf3f7; color:#0d556d; }
+    pre { overflow:auto; padding:18px; border-radius:12px; color:#e6f7f2; background:#102633; }
+    pre code { padding:0; color:inherit; background:none; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { padding:10px; text-align:left; border-bottom:1px solid var(--line); }
+    th { color:var(--muted); font-size:.84rem; letter-spacing:.04em; text-transform:uppercase; }
+    .note { padding:14px 16px; border-left:4px solid var(--accent); border-radius:0 10px 10px 0; background:#e8f5f7; }
+    footer { padding:34px 0 48px; color:var(--muted); font-size:.9rem; }
+    @media (max-width:720px) { .hero { padding:28px; } .grid { grid-template-columns:1fr; } section { padding:20px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <p class="eyebrow">Offline · Go 1.26 · stdio MCP</p>
+      <h1>mcp233-game-config-excel</h1>
+      <p>游戏 Excel 配表 MCP CLI。严格读取和写入 <code>config233</code> 固定行格式；默认模板直接匹配 <code>I18nTipsConfig</code>。</p>
+      <div class="badges"><span class="badge">无网络运行时</span><span class="badge">本地 .xlsx</span><span class="badge">JSON-RPC 2.0</span></div>
+    </header>
+
+    <div class="grid">
+      <article class="card"><h3>检查</h3><p>读取 CLIENT、TYPE、SERVER 行和数据行数量。</p></article>
+      <article class="card"><h3>校验</h3><p>验证固定行、字段顺序、字段类型与 UID 唯一性。</p></article>
+      <article class="card"><h3>安全写入</h3><p>按 UID upsert；未知 SERVER 字段立即拒绝。</p></article>
+    </div>
+
+    <h2>开始</h2>
+    <section>
+      <pre><code># 创建 I18nTipsConfig.xlsx
+mcp233-game-config-excel init-i18n --file .\I18nTipsConfig.xlsx
+
+# 验证服务端字段和 id 唯一性
+mcp233-game-config-excel validate --file .\I18nTipsConfig.xlsx --expected-columns id,tips_CN
+
+# 新增或更新一条中文提示
+mcp233-game-config-excel upsert --file .\I18nTipsConfig.xlsx --uid network_error --values '{"tips_CN":"网络异常，请重试"}'</code></pre>
+      <p class="note">工具没有 HTTP 客户端、数据库连接、遥测或登录逻辑。MCP 仅通过 stdio 与宿主通信，文件路径由调用方提供。</p>
+    </section>
+
+    <h2>config233 格式</h2>
+    <section>
+      <table>
+        <thead><tr><th>行</th><th>A 列</th><th>B 列及之后</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>注释</td><td>字段说明</td></tr>
+          <tr><td>2</td><td>中文字段名</td><td>策划可读名称</td></tr>
+          <tr><td>3</td><td>CLIENT</td><td>客户端字段名</td></tr>
+          <tr><td>4</td><td>TYPE</td><td>字段类型，如 <code>string</code></td></tr>
+          <tr><td>5</td><td>SERVER</td><td>Go <code>config233_column</code> 字段</td></tr>
+          <tr><td>6+</td><td>空</td><td>配置数据</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2>MCP 工具</h2>
+    <section>
+      <table>
+        <thead><tr><th>名称</th><th>行为</th></tr></thead>
+        <tbody>
+          <tr><td><code>config_excel_inspect</code></td><td>检查本地表结构。</td></tr>
+          <tr><td><code>config_excel_validate</code></td><td>返回结构化校验结果。</td></tr>
+          <tr><td><code>config_excel_read_rows</code></td><td>读取数据行，原样保留文本。</td></tr>
+          <tr><td><code>config_excel_upsert_row</code></td><td>按 UID 写入一行。</td></tr>
+          <tr><td><code>config_excel_create_i18n_template</code></td><td>创建 <code>id</code> / <code>tips_CN</code> 模板。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2>接入 MCP</h2>
+    <section>
+      <pre><code>{
+  "mcpServers": {
+    "game-config-excel": {
+      "command": "C:\\tools\\mcp233-game-config-excel.exe",
+      "args": ["serve"]
+    }
+  }
+}</code></pre>
+    </section>
+    <footer>MIT License · GitHub Actions: CI、tag release、GitHub Pages</footer>
+  </main>
+</body>
+</html>
