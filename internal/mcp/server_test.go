@@ -18,8 +18,8 @@ func TestServeToolsList(t *testing.T) {
 	}
 	result := response["result"].(map[string]any)
 	tools := result["tools"].([]any)
-	if len(tools) != 5 {
-		t.Fatalf("tool count = %d, want 5", len(tools))
+	if len(tools) != 6 {
+		t.Fatalf("tool count = %d, want 6", len(tools))
 	}
 }
 

@@ -29,7 +29,22 @@ go build -mod=vendor -o mcp233-game-config-excel.exe ./cmd/mcp233-game-config-ex
 
 # 按 id 新增或更新。未知 SERVER 字段会拒绝写入。
 ./mcp233-game-config-excel.exe upsert --file .\I18nTipsConfig.xlsx --uid network_error --values '{"tips_CN":"网络异常，请重试"}'
+
+# 全量导出：自动识别 tips_CN / tips_EN 等列；每个语言生成独立 JSON
+./mcp233-game-config-excel.exe export-i18n --file .\I18nTipsConfig.xlsx --output-dir .\i18n --format json --mode full
+
+# 增量导出：与上一版 Excel 比较，输出 upsert 与 delete
+./mcp233-game-config-excel.exe export-i18n --file .\I18nTipsConfig.xlsx --output-dir .\i18n-delta --format tsv --mode incremental --baseline-file .\I18nTipsConfig.previous.xlsx
 ```
+
+## 多语言导出
+
+`export-i18n` 自动提取大写语言后缀列：`tips_CN`、`tips_EN`、`name_JP`，也支持区域格式 `tips_zh_CN`。非标准列可用 `--language-columns title=CN,description=EN` 显式映射语言码。
+
+- `full`：每个语言输出完整字典。JSON 为 `{ "key": "text" }`；CSV/TSV 为 `key,value`。
+- `incremental`：必须提供 `--baseline-file`。JSON 为 `{ "upsert": {...}, "delete": [...] }`；CSV/TSV 为 `operation,key,value`。
+- 同一行有多个可本地化字段时，键自动成为 `id.字段前缀`，避免 `name_CN` 与 `tips_CN` 冲突。
+- 输出始终为无 BOM UTF-8，适合 Git diff 和客户端流水线。
 
 ## MCP 配置
 
@@ -55,6 +70,7 @@ go build -mod=vendor -o mcp233-game-config-excel.exe ./cmd/mcp233-game-config-ex
 | `config_excel_read_rows` | 读取数据行，保留文本原值 |
 | `config_excel_upsert_row` | 按 UID 新增或更新一行（写文件） |
 | `config_excel_create_i18n_template` | 创建 `I18nTipsConfig` 兼容表（写文件） |
+| `config_excel_export_i18n` | 导出 JSON / CSV / TSV；支持全量与基线增量（写文件） |
 
 ## config233 行格式
 

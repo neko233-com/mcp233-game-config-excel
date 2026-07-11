@@ -47,7 +47,7 @@
     <div class="grid">
       <article class="card"><h3>检查</h3><p>读取 CLIENT、TYPE、SERVER 行和数据行数量。</p></article>
       <article class="card"><h3>校验</h3><p>验证固定行、字段顺序、字段类型与 UID 唯一性。</p></article>
-      <article class="card"><h3>安全写入</h3><p>按 UID upsert；未知 SERVER 字段立即拒绝。</p></article>
+      <article class="card"><h3>多语言导出</h3><p>JSON、CSV、TSV；全量或基线增量。</p></article>
     </div>
 
     <h2>开始</h2>
@@ -59,7 +59,10 @@ mcp233-game-config-excel init-i18n --file .\I18nTipsConfig.xlsx
 mcp233-game-config-excel validate --file .\I18nTipsConfig.xlsx --expected-columns id,tips_CN
 
 # 新增或更新一条中文提示
-mcp233-game-config-excel upsert --file .\I18nTipsConfig.xlsx --uid network_error --values '{"tips_CN":"网络异常，请重试"}'</code></pre>
+mcp233-game-config-excel upsert --file .\I18nTipsConfig.xlsx --uid network_error --values '{"tips_CN":"网络异常，请重试"}'
+
+# 导出每个语言独立 JSON；自动识别 tips_CN / tips_EN
+mcp233-game-config-excel export-i18n --file .\I18nTipsConfig.xlsx --output-dir .\i18n --format json --mode full</code></pre>
       <p class="note">工具没有 HTTP 客户端、数据库连接、遥测或登录逻辑。MCP 仅通过 stdio 与宿主通信，文件路径由调用方提供。</p>
     </section>
 
@@ -88,8 +91,22 @@ mcp233-game-config-excel upsert --file .\I18nTipsConfig.xlsx --uid network_error
           <tr><td><code>config_excel_read_rows</code></td><td>读取数据行，原样保留文本。</td></tr>
           <tr><td><code>config_excel_upsert_row</code></td><td>按 UID 写入一行。</td></tr>
           <tr><td><code>config_excel_create_i18n_template</code></td><td>创建 <code>id</code> / <code>tips_CN</code> 模板。</td></tr>
+          <tr><td><code>config_excel_export_i18n</code></td><td>导出 JSON / CSV / TSV；支持全量与 Excel 基线增量。</td></tr>
         </tbody>
       </table>
+    </section>
+
+    <h2>多语言全量与增量</h2>
+    <section>
+      <p>自动识别 <code>tips_CN</code>、<code>tips_EN</code>、<code>name_JP</code> 与 <code>tips_zh_CN</code>。非标准字段可显式传入 <code>title=CN,description=EN</code>。</p>
+      <table>
+        <thead><tr><th>模式</th><th>JSON</th><th>CSV / TSV</th></tr></thead>
+        <tbody>
+          <tr><td>full</td><td><code>{ "key": "text" }</code></td><td><code>key,value</code></td></tr>
+          <tr><td>incremental</td><td><code>{ "upsert": {...}, "delete": [...] }</code></td><td><code>operation,key,value</code></td></tr>
+        </tbody>
+      </table>
+      <p>增量模式要求上一版兼容 Excel 作为基线。删除行明确输出为 <code>delete</code>；字符串清空输出为空值 <code>upsert</code>。</p>
     </section>
 
     <h2>接入 MCP</h2>

@@ -71,7 +71,7 @@ func dispatch(req request) response {
 		res.Result = map[string]any{
 			"protocolVersion": protocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]string{"name": "mcp233-game-config-excel", "version": "0.1.0"},
+			"serverInfo":      map[string]string{"name": "mcp233-game-config-excel", "version": "0.2.0"},
 		}
 	case "ping":
 		res.Result = map[string]any{}
@@ -125,6 +125,20 @@ func tools() []map[string]any {
 		{
 			"name": "config_excel_create_i18n_template", "description": "Create I18nTipsConfig-compatible Excel: id:string and tips_CN:string. This writes a new local file.",
 			"inputSchema": schema(map[string]any{"path": pathProperty, "sheet": sheetProperty}, "path"),
+		},
+		{
+			"name": "config_excel_export_i18n", "description": "Extract multilingual columns such as tips_CN/tips_EN to local JSON, CSV or TSV. Full exports all values; incremental compares baseline Excel and includes upsert/delete changes.",
+			"inputSchema": schema(map[string]any{
+				"path":            pathProperty,
+				"sheet":           sheetProperty,
+				"outputDir":       map[string]any{"type": "string", "description": "Local output directory"},
+				"format":          map[string]any{"type": "string", "enum": []string{"json", "csv", "tsv"}, "default": "json"},
+				"mode":            map[string]any{"type": "string", "enum": []string{"full", "incremental"}, "default": "full"},
+				"baselinePath":    map[string]any{"type": "string", "description": "Required in incremental mode: previous compatible Excel file"},
+				"baselineSheet":   sheetProperty,
+				"uidColumn":       map[string]any{"type": "string", "default": "id"},
+				"languageColumns": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Optional column or column=locale mapping; auto-detects *_CN, *_EN, *_zh_CN"},
+			}, "path", "outputDir"),
 		},
 	}
 }
@@ -196,6 +210,13 @@ func callTool(raw json.RawMessage) (any, error) {
 		}
 		err := configexcel.CreateI18nTemplate(args.Path, args.Sheet)
 		return toolResult(map[string]string{"path": args.Path}, err)
+	case "config_excel_export_i18n":
+		var args configexcel.I18nExportOptions
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		report, err := configexcel.ExportI18n(args)
+		return toolResult(report, err)
 	default:
 		return nil, fmt.Errorf("unknown tool: %s", call.Name)
 	}

@@ -95,8 +95,37 @@ func run(args []string) error {
 			return err
 		}
 		return configexcel.CreateI18nTemplate(*path, *sheet)
+	case "export-i18n":
+		flags := flag.NewFlagSet("export-i18n", flag.ContinueOnError)
+		path := flags.String("file", "", "local xlsx path")
+		sheet := flags.String("sheet", "", "sheet name")
+		outputDir := flags.String("output-dir", "i18n", "local output directory")
+		format := flags.String("format", configexcel.I18nExportFormatJSON, "json, csv or tsv")
+		mode := flags.String("mode", configexcel.I18nExportModeFull, "full or incremental")
+		baselinePath := flags.String("baseline-file", "", "previous compatible xlsx; required for incremental")
+		baselineSheet := flags.String("baseline-sheet", "", "baseline sheet name")
+		uidColumn := flags.String("uid-column", "id", "unique id field")
+		languageColumns := flags.String("language-columns", "", "optional comma-separated language columns")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		report, err := configexcel.ExportI18n(configexcel.I18nExportOptions{
+			Path:            *path,
+			Sheet:           *sheet,
+			OutputDir:       *outputDir,
+			Format:          *format,
+			Mode:            *mode,
+			BaselinePath:    *baselinePath,
+			BaselineSheet:   *baselineSheet,
+			UIDColumn:       *uidColumn,
+			LanguageColumns: splitCSV(*languageColumns),
+		})
+		if err != nil {
+			return err
+		}
+		return printJSON(report)
 	default:
-		return fmt.Errorf("unknown command %q; use serve, inspect, validate, read, upsert or init-i18n", args[0])
+		return fmt.Errorf("unknown command %q; use serve, inspect, validate, read, upsert, init-i18n or export-i18n", args[0])
 	}
 }
 
