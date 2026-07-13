@@ -32,6 +32,9 @@ func AddColumn(path, requestedSheet string, definition ColumnDefinition, afterCo
 	if definition.Name == "" {
 		return fmt.Errorf("column name is required")
 	}
+	if err := ensureWritableWorkbooks([]string{path}); err != nil {
+		return err
+	}
 	f, err := excelize.OpenFile(path)
 	if err != nil {
 		return fmt.Errorf("open workbook: %w", err)
@@ -68,6 +71,7 @@ func AddColumn(path, requestedSheet string, definition ColumnDefinition, afterCo
 	if err := f.Save(); err != nil {
 		return fmt.Errorf("save workbook: %w", err)
 	}
+	invalidateWorkbookCache(path)
 	return nil
 }
 
@@ -76,6 +80,9 @@ func DeleteColumn(path, requestedSheet, columnName string) error {
 	columnName = strings.TrimSpace(columnName)
 	if columnName == "" {
 		return fmt.Errorf("column name is required")
+	}
+	if err := ensureWritableWorkbooks([]string{path}); err != nil {
+		return err
 	}
 	f, err := excelize.OpenFile(path)
 	if err != nil {
@@ -104,6 +111,7 @@ func DeleteColumn(path, requestedSheet, columnName string) error {
 	if err := f.Save(); err != nil {
 		return fmt.Errorf("save workbook: %w", err)
 	}
+	invalidateWorkbookCache(path)
 	return nil
 }
 

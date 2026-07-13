@@ -130,6 +130,9 @@ func Validate(path, requestedSheet string, expectedColumns []string, uidColumn s
 	if uidColumn == "" {
 		uidColumn = "id"
 	}
+	if uidColumn != "id" {
+		return ValidationResult{}, fmt.Errorf("project unique id column must be exactly id")
+	}
 	result := ValidationResult{Valid: true, Issues: []string{}, Warnings: []string{}}
 	f, err := excelize.OpenFile(path)
 	if err != nil {
@@ -201,6 +204,9 @@ func UpsertRow(path, requestedSheet, uidColumn, uid string, values map[string]st
 	if strings.TrimSpace(uid) == "" {
 		return false, fmt.Errorf("uid is required")
 	}
+	if err := ensureWritableWorkbooks([]string{path}); err != nil {
+		return false, err
+	}
 	f, err := excelize.OpenFile(path)
 	if err != nil {
 		return false, fmt.Errorf("open workbook: %w", err)
@@ -267,6 +273,7 @@ func UpsertRow(path, requestedSheet, uidColumn, uid string, values map[string]st
 	if err := f.Save(); err != nil {
 		return false, fmt.Errorf("save workbook: %w", err)
 	}
+	invalidateWorkbookCache(path)
 	return created, nil
 }
 
