@@ -11,10 +11,11 @@ const textNumberFormatCode = "@"
 
 // ColumnDefinition describes one config233 column across the five header rows.
 type ColumnDefinition struct {
-	Name       string `json:"name"`
-	ClientName string `json:"clientName"`
-	Type       string `json:"type"`
-	Comment    string `json:"comment"`
+	Name        string `json:"name"`
+	ClientName  string `json:"clientName"`
+	DisplayName string `json:"displayName"`
+	Type        string `json:"type"`
+	Comment     string `json:"comment"`
 }
 
 // ColumnFormatCheck reports whether a column keeps its expected config type and Excel text format.
@@ -176,10 +177,14 @@ func CheckColumnFormat(path, requestedSheet, columnName string, requireText bool
 func normalizeColumnDefinition(definition ColumnDefinition) ColumnDefinition {
 	definition.Name = strings.TrimSpace(definition.Name)
 	definition.ClientName = strings.TrimSpace(definition.ClientName)
+	definition.DisplayName = strings.TrimSpace(definition.DisplayName)
 	definition.Type = strings.TrimSpace(definition.Type)
 	definition.Comment = strings.TrimSpace(definition.Comment)
 	if definition.ClientName == "" {
 		definition.ClientName = definition.Name
+	}
+	if definition.DisplayName == "" {
+		definition.DisplayName = definition.ClientName
 	}
 	if definition.Type == "" {
 		definition.Type = "string"
@@ -188,7 +193,7 @@ func normalizeColumnDefinition(definition ColumnDefinition) ColumnDefinition {
 }
 
 func columnDefinitionFromColumn(column Column) ColumnDefinition {
-	return ColumnDefinition{Name: column.Name, ClientName: column.ClientName, Type: column.Type}
+	return ColumnDefinition{Name: column.Name, ClientName: column.ClientName, DisplayName: column.ClientName, Type: column.Type}
 }
 
 func getColumnNumber(columns []Column, columnName string) (int, bool) {
@@ -265,7 +270,7 @@ func copyColumnStyle(f *excelize.File, sheet string, targetColumnNumber int) err
 }
 
 func writeColumnHeaders(f *excelize.File, sheet string, columnNumber int, definition ColumnDefinition) error {
-	values := []string{definition.Comment, definition.ClientName, definition.ClientName, definition.Type, definition.Name}
+	values := []string{definition.Comment, definition.DisplayName, definition.ClientName, definition.Type, definition.Name}
 	for index := 0; index < len(values); index++ {
 		cell, err := excelize.CoordinatesToCellName(columnNumber, index+1)
 		if err != nil {

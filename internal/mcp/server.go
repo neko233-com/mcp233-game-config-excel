@@ -128,6 +128,7 @@ func tools() []map[string]any {
 				"path": pathProperty, "sheet": sheetProperty,
 				"name":        map[string]any{"type": "string", "description": "SERVER field name"},
 				"clientName":  map[string]any{"type": "string", "description": "CLIENT field name; defaults to name"},
+				"displayName": map[string]any{"type": "string", "description": "row 2 display name; defaults to clientName"},
 				"type":        map[string]any{"type": "string", "default": "string", "description": "config233 TYPE; defaults to string"},
 				"comment":     map[string]any{"type": "string", "description": "Row 1 field comment"},
 				"afterColumn": map[string]any{"type": "string", "description": "Insert after this SERVER field; defaults to append"},
@@ -231,6 +232,7 @@ func callTool(raw json.RawMessage) (any, error) {
 			commonArguments
 			Name        string `json:"name"`
 			ClientName  string `json:"clientName"`
+			DisplayName string `json:"displayName"`
 			Type        string `json:"type"`
 			Comment     string `json:"comment"`
 			AfterColumn string `json:"afterColumn"`
@@ -239,7 +241,7 @@ func callTool(raw json.RawMessage) (any, error) {
 			return nil, err
 		}
 		err := configexcel.AddColumn(args.Path, args.Sheet, configexcel.ColumnDefinition{
-			Name: args.Name, ClientName: args.ClientName, Type: args.Type, Comment: args.Comment,
+			Name: args.Name, ClientName: args.ClientName, DisplayName: args.DisplayName, Type: args.Type, Comment: args.Comment,
 		}, args.AfterColumn)
 		return toolResult(map[string]string{"name": args.Name}, err)
 	case "config_excel_delete_column":

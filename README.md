@@ -31,7 +31,7 @@ go build -mod=vendor -o .\\dist\\mcp233-game-config-excel.exe ./cmd/mcp233-game-
 ./mcp233-game-config-excel.exe upsert --file .\I18nTipsConfig.xlsx --uid network_error --values '{"tips_CN":"网络异常，请重试"}'
 
 # 新增 CLIENT / TYPE / SERVER 列：继承相邻列样式，并统一设为 Excel 文本格式
-./mcp233-game-config-excel.exe add-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --client-name handbookIconPath --type string --comment "图鉴显示的武器 icon" --after-column skillId
+./mcp233-game-config-excel.exe add-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --client-name handbookIconPath --display-name "图鉴显示的武器 icon" --type string --comment "图鉴显示的武器 icon" --after-column skillId
 
 # 删除列，或检查目标列全部单元格是否保持文本格式
 ./mcp233-game-config-excel.exe delete-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath

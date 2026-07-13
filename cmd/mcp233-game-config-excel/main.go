@@ -93,6 +93,7 @@ func run(args []string) error {
 		sheet := flags.String("sheet", "", "sheet name")
 		name := flags.String("name", "", "SERVER field name")
 		clientName := flags.String("client-name", "", "CLIENT field name; defaults to name")
+		displayName := flags.String("display-name", "", "row 2 display name; defaults to client name")
 		typeName := flags.String("type", "string", "config233 TYPE; defaults to string")
 		comment := flags.String("comment", "", "row 1 field comment")
 		afterColumn := flags.String("after-column", "", "insert after this SERVER field; defaults to append")
@@ -100,7 +101,7 @@ func run(args []string) error {
 			return err
 		}
 		return configexcel.AddColumn(*path, *sheet, configexcel.ColumnDefinition{
-			Name: *name, ClientName: *clientName, Type: *typeName, Comment: *comment,
+			Name: *name, ClientName: *clientName, DisplayName: *displayName, Type: *typeName, Comment: *comment,
 		}, *afterColumn)
 	case "delete-column":
 		flags := flag.NewFlagSet("delete-column", flag.ContinueOnError)

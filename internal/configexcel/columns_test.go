@@ -29,7 +29,7 @@ func TestAddColumnPreservesStyleAndUsesTextFormat(t *testing.T) {
 	_ = f.Close()
 
 	err = AddColumn(path, "", ColumnDefinition{
-		Name: "handbookIconPath", ClientName: "handbookIconPath", Type: "string", Comment: "图鉴显示的武器 icon",
+		Name: "handbookIconPath", ClientName: "handbookIconPath", DisplayName: "图鉴显示的武器 icon", Type: "string", Comment: "图鉴显示的武器 icon",
 	}, "tips_CN")
 	if err != nil {
 		t.Fatal(err)
@@ -66,6 +66,13 @@ func TestAddColumnPreservesStyleAndUsesTextFormat(t *testing.T) {
 	}
 	if len(style.Fill.Color) != 1 || style.Fill.Color[0] != "ABCDEF" {
 		t.Fatalf("copied fill = %+v", style.Fill)
+	}
+	displayName, err := f.GetCellValue("I18nTipsConfig", "D2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if displayName != "图鉴显示的武器 icon" {
+		t.Fatalf("display name = %q", displayName)
 	}
 	_ = f.Close()
 }

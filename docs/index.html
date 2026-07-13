@@ -62,7 +62,7 @@ mcp233-game-config-excel validate --file .\I18nTipsConfig.xlsx --expected-column
 mcp233-game-config-excel upsert --file .\I18nTipsConfig.xlsx --uid network_error --values '{"tips_CN":"网络异常，请重试"}'
 
 # 新增图鉴图标列：保留相邻列样式，统一按文本保存
-mcp233-game-config-excel add-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --client-name handbookIconPath --type string --comment "图鉴显示的武器 icon" --after-column skillId
+mcp233-game-config-excel add-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --client-name handbookIconPath --display-name "图鉴显示的武器 icon" --type string --comment "图鉴显示的武器 icon" --after-column skillId
 
 # 校验目标列的文本格式
 mcp233-game-config-excel check-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --require-text true
