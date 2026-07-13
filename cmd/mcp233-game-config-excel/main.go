@@ -87,6 +87,50 @@ func run(args []string) error {
 			return err
 		}
 		return printJSON(map[string]any{"created": created, "uid": *uid})
+	case "add-column":
+		flags := flag.NewFlagSet("add-column", flag.ContinueOnError)
+		path := flags.String("file", "", "local xlsx path")
+		sheet := flags.String("sheet", "", "sheet name")
+		name := flags.String("name", "", "SERVER field name")
+		clientName := flags.String("client-name", "", "CLIENT field name; defaults to name")
+		typeName := flags.String("type", "string", "config233 TYPE; defaults to string")
+		comment := flags.String("comment", "", "row 1 field comment")
+		afterColumn := flags.String("after-column", "", "insert after this SERVER field; defaults to append")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return configexcel.AddColumn(*path, *sheet, configexcel.ColumnDefinition{
+			Name: *name, ClientName: *clientName, Type: *typeName, Comment: *comment,
+		}, *afterColumn)
+	case "delete-column":
+		flags := flag.NewFlagSet("delete-column", flag.ContinueOnError)
+		path := flags.String("file", "", "local xlsx path")
+		sheet := flags.String("sheet", "", "sheet name")
+		name := flags.String("name", "", "SERVER field name")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return configexcel.DeleteColumn(*path, *sheet, *name)
+	case "check-column":
+		flags := flag.NewFlagSet("check-column", flag.ContinueOnError)
+		path := flags.String("file", "", "local xlsx path")
+		sheet := flags.String("sheet", "", "sheet name")
+		name := flags.String("name", "", "SERVER field name")
+		requireText := flags.Bool("require-text", true, "require TYPE string and Excel text number format")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		result, err := configexcel.CheckColumnFormat(*path, *sheet, *name, *requireText)
+		if err != nil {
+			return err
+		}
+		if err := printJSON(result); err != nil {
+			return err
+		}
+		if len(result.Issues) > 0 {
+			return fmt.Errorf("column format check failed")
+		}
+		return nil
 	case "init-i18n":
 		flags := flag.NewFlagSet("init-i18n", flag.ContinueOnError)
 		path := flags.String("file", "I18nTipsConfig.xlsx", "output xlsx path")
@@ -125,7 +169,7 @@ func run(args []string) error {
 		}
 		return printJSON(report)
 	default:
-		return fmt.Errorf("unknown command %q; use serve, inspect, validate, read, upsert, init-i18n or export-i18n", args[0])
+		return fmt.Errorf("unknown command %q; use serve, inspect, validate, read, upsert, add-column, delete-column, check-column, init-i18n or export-i18n", args[0])
 	}
 }
 

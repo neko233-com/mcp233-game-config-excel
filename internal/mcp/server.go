@@ -71,7 +71,7 @@ func dispatch(req request) response {
 		res.Result = map[string]any{
 			"protocolVersion": protocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]string{"name": "mcp233-game-config-excel", "version": "0.2.0"},
+			"serverInfo":      map[string]string{"name": "mcp233-game-config-excel", "version": "0.3.0"},
 		}
 	case "ping":
 		res.Result = map[string]any{}
@@ -121,6 +121,29 @@ func tools() []map[string]any {
 				"uid":       map[string]any{"type": "string"},
 				"values":    map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
 			}, "path", "uid", "values"),
+		},
+		{
+			"name": "config_excel_add_column", "description": "Insert a config233 column, preserve neighbouring style and apply Excel text format by default. This writes the supplied Excel file.",
+			"inputSchema": schema(map[string]any{
+				"path": pathProperty, "sheet": sheetProperty,
+				"name":        map[string]any{"type": "string", "description": "SERVER field name"},
+				"clientName":  map[string]any{"type": "string", "description": "CLIENT field name; defaults to name"},
+				"type":        map[string]any{"type": "string", "default": "string", "description": "config233 TYPE; defaults to string"},
+				"comment":     map[string]any{"type": "string", "description": "Row 1 field comment"},
+				"afterColumn": map[string]any{"type": "string", "description": "Insert after this SERVER field; defaults to append"},
+			}, "path", "name"),
+		},
+		{
+			"name": "config_excel_delete_column", "description": "Delete one config233 SERVER column and its aligned header/data cells. This writes the supplied Excel file.",
+			"inputSchema": schema(map[string]any{"path": pathProperty, "sheet": sheetProperty, "name": map[string]any{"type": "string", "description": "SERVER field name"}}, "path", "name"),
+		},
+		{
+			"name": "config_excel_check_column_format", "description": "Inspect one config233 column and report TYPE plus per-cell Excel text-format violations.",
+			"inputSchema": schema(map[string]any{
+				"path": pathProperty, "sheet": sheetProperty,
+				"name":        map[string]any{"type": "string", "description": "SERVER field name"},
+				"requireText": map[string]any{"type": "boolean", "default": true, "description": "Require TYPE string and Excel text cells"},
+			}, "path", "name"),
 		},
 		{
 			"name": "config_excel_create_i18n_template", "description": "Create I18nTipsConfig-compatible Excel: id:string and tips_CN:string. This writes a new local file.",
@@ -203,6 +226,47 @@ func callTool(raw json.RawMessage) (any, error) {
 		}
 		created, err := configexcel.UpsertRow(args.Path, args.Sheet, args.UIDColumn, args.UID, args.Values)
 		return toolResult(map[string]any{"created": created, "uid": args.UID}, err)
+	case "config_excel_add_column":
+		var args struct {
+			commonArguments
+			Name        string `json:"name"`
+			ClientName  string `json:"clientName"`
+			Type        string `json:"type"`
+			Comment     string `json:"comment"`
+			AfterColumn string `json:"afterColumn"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		err := configexcel.AddColumn(args.Path, args.Sheet, configexcel.ColumnDefinition{
+			Name: args.Name, ClientName: args.ClientName, Type: args.Type, Comment: args.Comment,
+		}, args.AfterColumn)
+		return toolResult(map[string]string{"name": args.Name}, err)
+	case "config_excel_delete_column":
+		var args struct {
+			commonArguments
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		err := configexcel.DeleteColumn(args.Path, args.Sheet, args.Name)
+		return toolResult(map[string]string{"name": args.Name}, err)
+	case "config_excel_check_column_format":
+		var args struct {
+			commonArguments
+			Name        string `json:"name"`
+			RequireText *bool  `json:"requireText"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		requireText := true
+		if args.RequireText != nil {
+			requireText = *args.RequireText
+		}
+		result, err := configexcel.CheckColumnFormat(args.Path, args.Sheet, args.Name, requireText)
+		return toolResult(result, err)
 	case "config_excel_create_i18n_template":
 		var args commonArguments
 		if err := json.Unmarshal(call.Arguments, &args); err != nil {

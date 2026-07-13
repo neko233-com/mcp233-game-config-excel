@@ -21,9 +21,10 @@ const (
 
 // Column is one config233 field, sourced from its CLIENT, TYPE and SERVER rows.
 type Column struct {
-	Name       string `json:"name"`
-	ClientName string `json:"clientName"`
-	Type       string `json:"type"`
+	Name              string `json:"name"`
+	ClientName        string `json:"clientName"`
+	Type              string `json:"type"`
+	ExcelColumnNumber int    `json:"-"`
 }
 
 // Inspection describes Excel format without exposing arbitrary workbook metadata.
@@ -103,9 +104,9 @@ func ReadRows(path, requestedSheet string, limit int) ([]map[string]string, erro
 		row := rows[rowIndex]
 		item := make(map[string]string)
 		nonEmpty := false
-		for columnIndex, column := range columns {
+		for _, column := range columns {
 			value := ""
-			cellIndex := columnIndex + 1 // config233 reserves column A as marker.
+			cellIndex := column.ExcelColumnNumber - 1
 			if cellIndex < len(row) {
 				value = row[cellIndex]
 			}
@@ -214,8 +215,8 @@ func UpsertRow(path, requestedSheet, uidColumn, uid string, values map[string]st
 		return false, err
 	}
 	columnIndexes := map[string]int{}
-	for index, column := range columns {
-		columnIndexes[column.Name] = index + 2 // Excel column number, with A marker.
+	for _, column := range columns {
+		columnIndexes[column.Name] = column.ExcelColumnNumber
 	}
 	uidIndex, found := columnIndexes[uidColumn]
 	if !found {
@@ -341,7 +342,7 @@ func readColumns(f *excelize.File, sheet string) ([]Column, error) {
 		if name == "" {
 			continue
 		}
-		column := Column{Name: name}
+		column := Column{Name: name, ExcelColumnNumber: index + 1}
 		if index < len(clientFields) {
 			column.ClientName = strings.TrimSpace(clientFields[index])
 		}

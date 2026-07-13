@@ -47,7 +47,7 @@
     <div class="grid">
       <article class="card"><h3>检查</h3><p>读取 CLIENT、TYPE、SERVER 行和数据行数量。</p></article>
       <article class="card"><h3>校验</h3><p>验证固定行、字段顺序、字段类型与 UID 唯一性。</p></article>
-      <article class="card"><h3>多语言导出</h3><p>JSON、CSV、TSV；全量或基线增量。</p></article>
+      <article class="card"><h3>列维护</h3><p>新增、删除、检查列；保留相邻单元格样式，字符串优先文本格式。</p></article>
     </div>
 
     <h2>开始</h2>
@@ -60,6 +60,12 @@ mcp233-game-config-excel validate --file .\I18nTipsConfig.xlsx --expected-column
 
 # 新增或更新一条中文提示
 mcp233-game-config-excel upsert --file .\I18nTipsConfig.xlsx --uid network_error --values '{"tips_CN":"网络异常，请重试"}'
+
+# 新增图鉴图标列：保留相邻列样式，统一按文本保存
+mcp233-game-config-excel add-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --client-name handbookIconPath --type string --comment "图鉴显示的武器 icon" --after-column skillId
+
+# 校验目标列的文本格式
+mcp233-game-config-excel check-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --require-text true
 
 # 导出每个语言独立 JSON；自动识别 tips_CN / tips_EN
 mcp233-game-config-excel export-i18n --file .\I18nTipsConfig.xlsx --output-dir .\i18n --format json --mode full</code></pre>
@@ -92,6 +98,9 @@ mcp233-game-config-excel export-i18n --file .\I18nTipsConfig.xlsx --output-dir .
           <tr><td><code>config_excel_upsert_row</code></td><td>按 UID 写入一行。</td></tr>
           <tr><td><code>config_excel_create_i18n_template</code></td><td>创建 <code>id</code> / <code>tips_CN</code> 模板。</td></tr>
           <tr><td><code>config_excel_export_i18n</code></td><td>导出 JSON / CSV / TSV；支持全量与 Excel 基线增量。</td></tr>
+          <tr><td><code>config_excel_add_column</code></td><td>新增列，继承相邻样式并设置 Excel 文本格式。</td></tr>
+          <tr><td><code>config_excel_delete_column</code></td><td>按字段名删除整列。</td></tr>
+          <tr><td><code>config_excel_check_column_format</code></td><td>检查列位置、文本格式和异常单元格。</td></tr>
         </tbody>
       </table>
     </section>

@@ -12,7 +12,7 @@
 发布包内含二进制。源码离线构建使用仓库随附 `vendor/`：
 
 ```powershell
-go build -mod=vendor -o mcp233-game-config-excel.exe ./cmd/mcp233-game-config-excel
+go build -mod=vendor -o .\\dist\\mcp233-game-config-excel.exe ./cmd/mcp233-game-config-excel
 ```
 
 ## CLI
@@ -29,6 +29,13 @@ go build -mod=vendor -o mcp233-game-config-excel.exe ./cmd/mcp233-game-config-ex
 
 # 按 id 新增或更新。未知 SERVER 字段会拒绝写入。
 ./mcp233-game-config-excel.exe upsert --file .\I18nTipsConfig.xlsx --uid network_error --values '{"tips_CN":"网络异常，请重试"}'
+
+# 新增 CLIENT / TYPE / SERVER 列：继承相邻列样式，并统一设为 Excel 文本格式
+./mcp233-game-config-excel.exe add-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --client-name handbookIconPath --type string --comment "图鉴显示的武器 icon" --after-column skillId
+
+# 删除列，或检查目标列全部单元格是否保持文本格式
+./mcp233-game-config-excel.exe delete-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath
+./mcp233-game-config-excel.exe check-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --require-text true
 
 # 全量导出：自动识别 tips_CN / tips_EN 等列；每个语言生成独立 JSON
 ./mcp233-game-config-excel.exe export-i18n --file .\I18nTipsConfig.xlsx --output-dir .\i18n --format json --mode full
@@ -71,6 +78,9 @@ go build -mod=vendor -o mcp233-game-config-excel.exe ./cmd/mcp233-game-config-ex
 | `config_excel_upsert_row` | 按 UID 新增或更新一行（写文件） |
 | `config_excel_create_i18n_template` | 创建 `I18nTipsConfig` 兼容表（写文件） |
 | `config_excel_export_i18n` | 导出 JSON / CSV / TSV；支持全量与基线增量（写文件） |
+| `config_excel_add_column` | 新增列，继承相邻单元格样式，默认使用 Excel 文本格式（写文件） |
+| `config_excel_delete_column` | 按字段名删除整列（写文件） |
+| `config_excel_check_column_format` | 检查列位置、文本格式与异常单元格 |
 
 ## config233 行格式
 
