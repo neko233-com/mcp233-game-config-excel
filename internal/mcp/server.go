@@ -6,9 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/neko233-com/mcp233-game-config-excel/internal/configexcel"
+	"github.com/neko233-com/mcp233-game-config-excel/internal/configexcel/validation"
+	"github.com/neko233-com/mcp233-game-config-excel/internal/updater"
 )
 
 const protocolVersion = "2025-06-18"
@@ -71,7 +75,7 @@ func dispatch(req request) response {
 		res.Result = map[string]any{
 			"protocolVersion": protocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]string{"name": "mcp233-game-config-excel", "version": "0.3.0"},
+			"serverInfo":      map[string]string{"name": "mcp233-game-config-excel", "version": "0.4.0"},
 		}
 	case "ping":
 		res.Result = map[string]any{}
@@ -145,6 +149,64 @@ func tools() []map[string]any {
 				"name":        map[string]any{"type": "string", "description": "SERVER field name"},
 				"requireText": map[string]any{"type": "boolean", "default": true, "description": "Require TYPE string and Excel text cells"},
 			}, "path", "name"),
+		},
+		{
+			"name": "config_excel_search", "description": "Recursively search config233 Excel data cells by literal value or regular expression. Results include deduplicated values and exact file/sheet/cell locations.",
+			"inputSchema": schema(map[string]any{
+				"paths":         map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Excel files or directories to scan recursively"},
+				"projectConfig": map[string]any{"type": "string", "description": "mcp233-game-config-excel.txt path; supports properties and TOML config_dirs"},
+				"query":         map[string]any{"type": "string", "description": "Literal text or regular expression, for example icon_handbook_.*"},
+				"regex":         map[string]any{"type": "boolean", "default": false}, "caseSensitive": map[string]any{"type": "boolean", "default": false}, "includeHeaders": map[string]any{"type": "boolean", "default": false},
+			}, "query"),
+		},
+		{
+			"name": "config_excel_replace", "description": "Preview or apply a literal/regular-expression replacement across config Excel files. Always returns per-cell before/after Markdown comparison; apply=false is safe preview.",
+			"inputSchema": schema(map[string]any{
+				"paths": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "projectConfig": map[string]any{"type": "string"},
+				"query": map[string]any{"type": "string"}, "replacement": map[string]any{"type": "string"}, "regex": map[string]any{"type": "boolean", "default": false}, "caseSensitive": map[string]any{"type": "boolean", "default": false}, "includeHeaders": map[string]any{"type": "boolean", "default": false}, "apply": map[string]any{"type": "boolean", "default": false, "description": "Only true writes files after review"},
+			}, "query", "replacement"),
+		},
+		{
+			"name": "config_excel_check_text_formats", "description": "Check every string field in recursive config Excel files. Reports non-text cells and likely Excel date auto-conversions.",
+			"inputSchema": schema(map[string]any{
+				"paths": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "projectConfig": map[string]any{"type": "string"},
+			}),
+		},
+		{
+			"name": "config_excel_deep_validate", "description": "Run non-mutating automated validation across every configured workbook: config233 structure, string cell type risks, and Excel-open lock markers. Open workbooks remain searchable but must be closed before writes.",
+			"inputSchema": schema(map[string]any{
+				"paths": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "projectConfig": map[string]any{"type": "string"},
+			}),
+		},
+		{
+			"name": "config_excel_cache", "description": "Inspect or reset the process-local workbook index cache used to reduce repeated Excel parsing and MCP response cost. reset=true only clears memory.",
+			"inputSchema": schema(map[string]any{"reset": map[string]any{"type": "boolean", "default": false}}),
+		},
+		{
+			"name": "config_excel_configure_project", "description": "Let an agent preview or apply this MCP's project configuration through dialogue. Writes only mcp233-game-config-excel.txt when apply=true and returns before/after table.",
+			"inputSchema": schema(map[string]any{
+				"path": map[string]any{"type": "string", "description": "mcp233-game-config-excel.txt path"}, "configDirs": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Business Excel directories"}, "idColumn": map[string]any{"type": "string", "default": "id", "description": "Fixed project rule: must be exact lowercase id"}, "battleValueScale": map[string]any{"type": "integer", "default": 100, "description": "Raw battle value scale: 100 means in-game display 1.00"}, "battleAttributePatterns": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Regular expressions matched against SERVER/CLIENT battle field names"}, "apply": map[string]any{"type": "boolean", "default": false},
+			}, "path", "configDirs"),
+		},
+		{
+			"name": "config_excel_validate_project", "description": "Comprehensive non-mutating project validation: config233 structure, exact unique id column rule, configured battle fields, raw 100 = displayed 1.00 convention, text-format risks, and Excel locks.",
+			"inputSchema": schema(map[string]any{"projectConfig": map[string]any{"type": "string", "description": "mcp233-game-config-excel.txt path"}}, "projectConfig"),
+		},
+		{
+			"name": "config_excel_self_check", "description": "MCP deep self-check using project rules. Returns configuration, validation summary, locked files, id failures and battle-value failures without writing Excel.",
+			"inputSchema": schema(map[string]any{"projectConfig": map[string]any{"type": "string", "description": "mcp233-game-config-excel.txt path"}}, "projectConfig"),
+		},
+		{
+			"name": "config_excel_update_status", "description": "Inspect offline local MCP versions and automatic-selection policy. Network update/download is intentionally disabled.",
+			"inputSchema": schema(map[string]any{}),
+		},
+		{
+			"name": "config_excel_update_activate", "description": "Preview or activate an already-built local MCP version. version=auto selects newest local version on next MCP restart; apply=false is preview.",
+			"inputSchema": schema(map[string]any{"version": map[string]any{"type": "string", "description": "Version such as 0.4.0 or auto"}, "apply": map[string]any{"type": "boolean", "default": false}}, "version"),
+		},
+		{
+			"name": "config_excel_update_rollback", "description": "Preview or activate the previous local MCP version on next restart. Does not delete any binary.",
+			"inputSchema": schema(map[string]any{"apply": map[string]any{"type": "boolean", "default": false}}),
 		},
 		{
 			"name": "config_excel_create_i18n_template", "description": "Create I18nTipsConfig-compatible Excel: id:string and tips_CN:string. This writes a new local file.",
@@ -269,6 +331,96 @@ func callTool(raw json.RawMessage) (any, error) {
 		}
 		result, err := configexcel.CheckColumnFormat(args.Path, args.Sheet, args.Name, requireText)
 		return toolResult(result, err)
+	case "config_excel_search":
+		var args configexcel.SearchOptions
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		result, err := configexcel.Search(args)
+		return toolResult(result, err)
+	case "config_excel_replace":
+		var args configexcel.ReplaceOptions
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		result, err := configexcel.Replace(args)
+		return toolResult(result, err)
+	case "config_excel_check_text_formats":
+		var args struct {
+			Paths         []string `json:"paths"`
+			ProjectConfig string   `json:"projectConfig"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		result, err := configexcel.CheckTextFormats(args.Paths, args.ProjectConfig)
+		return toolResult(result, err)
+	case "config_excel_deep_validate":
+		var args struct {
+			Paths         []string `json:"paths"`
+			ProjectConfig string   `json:"projectConfig"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		result, err := configexcel.DeepValidate(args.Paths, args.ProjectConfig)
+		return toolResult(result, err)
+	case "config_excel_cache":
+		var args struct {
+			Reset bool `json:"reset"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		if args.Reset {
+			return toolResult(configexcel.ResetCache(), nil)
+		}
+		return toolResult(configexcel.GetCacheStats(), nil)
+	case "config_excel_configure_project":
+		var args struct {
+			Path                    string   `json:"path"`
+			ConfigDirs              []string `json:"configDirs"`
+			IDColumn                string   `json:"idColumn"`
+			BattleValueScale        int64    `json:"battleValueScale"`
+			BattleAttributePatterns []string `json:"battleAttributePatterns"`
+			Apply                   bool     `json:"apply"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		result, err := configexcel.ConfigureProjectWithOptions(configexcel.ConfigureProjectOptions{Path: args.Path, ConfigDirs: args.ConfigDirs, IDColumn: args.IDColumn, BattleValueScale: args.BattleValueScale, BattleAttributePatterns: args.BattleAttributePatterns, Apply: args.Apply})
+		return toolResult(result, err)
+	case "config_excel_validate_project", "config_excel_self_check":
+		var args struct {
+			ProjectConfig string `json:"projectConfig"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		result, err := validation.SelfCheck(args.ProjectConfig)
+		return toolResult(result, err)
+	case "config_excel_update_status":
+		result, err := updater.ReadStatus(updateDirectory())
+		return toolResult(result, err)
+	case "config_excel_update_activate":
+		var args struct {
+			Version string `json:"version"`
+			Apply   bool   `json:"apply"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		result, err := updater.SetActiveVersion(updateDirectory(), args.Version, args.Apply)
+		return toolResult(result, err)
+	case "config_excel_update_rollback":
+		var args struct {
+			Apply bool `json:"apply"`
+		}
+		if err := json.Unmarshal(call.Arguments, &args); err != nil {
+			return nil, err
+		}
+		result, err := updater.Rollback(updateDirectory(), args.Apply)
+		return toolResult(result, err)
 	case "config_excel_create_i18n_template":
 		var args commonArguments
 		if err := json.Unmarshal(call.Arguments, &args); err != nil {
@@ -297,4 +449,12 @@ func toolResult(value any, err error) (any, error) {
 		return nil, err
 	}
 	return map[string]any{"content": []map[string]string{{"type": "text", "text": string(encoded)}}}, nil
+}
+
+func updateDirectory() string {
+	executable, err := os.Executable()
+	if err != nil {
+		return "."
+	}
+	return filepath.Dir(executable)
 }

@@ -5,10 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/neko233-com/mcp233-game-config-excel/internal/configexcel"
+	"github.com/neko233-com/mcp233-game-config-excel/internal/configexcel/validation"
 	"github.com/neko233-com/mcp233-game-config-excel/internal/mcp"
+	"github.com/neko233-com/mcp233-game-config-excel/internal/updater"
 )
 
 func main() {
@@ -169,8 +172,96 @@ func run(args []string) error {
 			return err
 		}
 		return printJSON(report)
+	case "search":
+		flags := flag.NewFlagSet("search", flag.ContinueOnError)
+		paths := flags.String("paths", "", "comma-separated Excel files or directories")
+		projectConfig := flags.String("project-config", "", "mcp233-game-config-excel.txt path")
+		query := flags.String("query", "", "literal text or regular expression")
+		regex := flags.Bool("regex", false, "interpret query as regular expression")
+		caseSensitive := flags.Bool("case-sensitive", false, "case-sensitive search")
+		includeHeaders := flags.Bool("include-headers", false, "also search header rows")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return printJSONMust(configexcel.Search(configexcel.SearchOptions{Paths: splitCSV(*paths), ProjectConfig: *projectConfig, Query: *query, Regex: *regex, CaseSensitive: *caseSensitive, IncludeHeaders: *includeHeaders}))
+	case "replace":
+		flags := flag.NewFlagSet("replace", flag.ContinueOnError)
+		paths := flags.String("paths", "", "comma-separated Excel files or directories")
+		projectConfig := flags.String("project-config", "", "mcp233-game-config-excel.txt path")
+		query := flags.String("query", "", "literal text or regular expression")
+		replacement := flags.String("replacement", "", "replacement text")
+		regex := flags.Bool("regex", false, "interpret query as regular expression")
+		caseSensitive := flags.Bool("case-sensitive", false, "case-sensitive search")
+		includeHeaders := flags.Bool("include-headers", false, "also replace header rows")
+		apply := flags.Bool("apply", false, "write changes; without this only preview")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return printJSONMust(configexcel.Replace(configexcel.ReplaceOptions{SearchOptions: configexcel.SearchOptions{Paths: splitCSV(*paths), ProjectConfig: *projectConfig, Query: *query, Regex: *regex, CaseSensitive: *caseSensitive, IncludeHeaders: *includeHeaders}, Replacement: *replacement, Apply: *apply}))
+	case "check-formats":
+		flags := flag.NewFlagSet("check-formats", flag.ContinueOnError)
+		paths := flags.String("paths", "", "comma-separated Excel files or directories")
+		projectConfig := flags.String("project-config", "", "mcp233-game-config-excel.txt path")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return printJSONMust(configexcel.CheckTextFormats(splitCSV(*paths), *projectConfig))
+	case "deep-validate":
+		flags := flag.NewFlagSet("deep-validate", flag.ContinueOnError)
+		paths := flags.String("paths", "", "comma-separated Excel files or directories")
+		projectConfig := flags.String("project-config", "", "mcp233-game-config-excel.txt path")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return printJSONMust(configexcel.DeepValidate(splitCSV(*paths), *projectConfig))
+	case "cache":
+		flags := flag.NewFlagSet("cache", flag.ContinueOnError)
+		reset := flags.Bool("reset", false, "clear process-local cache")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *reset {
+			return printJSON(configexcel.ResetCache())
+		}
+		return printJSON(configexcel.GetCacheStats())
+	case "configure-project":
+		flags := flag.NewFlagSet("configure-project", flag.ContinueOnError)
+		path := flags.String("file", "mcp233-game-config-excel.txt", "project config path")
+		configDirs := flags.String("config-dirs", "", "comma-separated business config directories")
+		idColumn := flags.String("id-column", "id", "fixed id column; must be id")
+		battleValueScale := flags.Int64("battle-value-scale", 100, "raw battle scale: 100 displays as 1.00")
+		battlePatterns := flags.String("battle-attribute-patterns", "", "comma-separated regular expressions for battle fields")
+		apply := flags.Bool("apply", false, "write configuration; without this only preview")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return printJSONMust(configexcel.ConfigureProjectWithOptions(configexcel.ConfigureProjectOptions{Path: *path, ConfigDirs: splitCSV(*configDirs), IDColumn: *idColumn, BattleValueScale: *battleValueScale, BattleAttributePatterns: splitCSV(*battlePatterns), Apply: *apply}))
+	case "validate-project", "self-check":
+		flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
+		projectConfig := flags.String("project-config", "mcp233-game-config-excel.txt", "mcp233-game-config-excel.txt path")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return printJSONMust(validation.SelfCheck(*projectConfig))
+	case "update-status":
+		return printJSONMust(updater.ReadStatus(cliUpdateDirectory()))
+	case "update-activate":
+		flags := flag.NewFlagSet("update-activate", flag.ContinueOnError)
+		version := flags.String("version", "", "local version such as 0.4.0 or auto")
+		apply := flags.Bool("apply", false, "write active version policy; without this only preview")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return printJSONMust(updater.SetActiveVersion(cliUpdateDirectory(), *version, *apply))
+	case "update-rollback":
+		flags := flag.NewFlagSet("update-rollback", flag.ContinueOnError)
+		apply := flags.Bool("apply", false, "write previous version policy; without this only preview")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		return printJSONMust(updater.Rollback(cliUpdateDirectory(), *apply))
 	default:
-		return fmt.Errorf("unknown command %q; use serve, inspect, validate, read, upsert, add-column, delete-column, check-column, init-i18n or export-i18n", args[0])
+		return fmt.Errorf("unknown command %q; use serve, inspect, validate, read, upsert, add-column, delete-column, check-column, init-i18n, export-i18n, search, replace, check-formats, deep-validate, cache, configure-project, validate-project, self-check, update-status, update-activate or update-rollback", args[0])
 	}
 }
 
@@ -192,4 +283,19 @@ func printJSON(value any) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
+}
+
+func printJSONMust(value any, err error) error {
+	if err != nil {
+		return err
+	}
+	return printJSON(value)
+}
+
+func cliUpdateDirectory() string {
+	executable, err := os.Executable()
+	if err != nil {
+		return "."
+	}
+	return filepath.Dir(executable)
 }

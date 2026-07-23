@@ -47,7 +47,7 @@
     <div class="grid">
       <article class="card"><h3>检查</h3><p>读取 CLIENT、TYPE、SERVER 行和数据行数量。</p></article>
       <article class="card"><h3>校验</h3><p>验证固定行、字段顺序、字段类型与 UID 唯一性。</p></article>
-      <article class="card"><h3>列维护</h3><p>新增、删除、检查列；保留相邻单元格样式，字符串优先文本格式。</p></article>
+      <article class="card"><h3>批量安全操作</h3><p>递归搜索、正则、去重、格式风险检查；替换默认预览，确认后写入。</p></article>
     </div>
 
     <h2>开始</h2>
@@ -68,7 +68,29 @@ mcp233-game-config-excel add-column --file .\FishingWeaponConfig.xlsx --name han
 mcp233-game-config-excel check-column --file .\FishingWeaponConfig.xlsx --name handbookIconPath --require-text true
 
 # 导出每个语言独立 JSON；自动识别 tips_CN / tips_EN
-mcp233-game-config-excel export-i18n --file .\I18nTipsConfig.xlsx --output-dir .\i18n --format json --mode full</code></pre>
+mcp233-game-config-excel export-i18n --file .\I18nTipsConfig.xlsx --output-dir .\i18n --format json --mode full
+
+# 递归搜索，支持正则；返回路径、Sheet、单元格和去重值
+mcp233-game-config-excel search --project-config .\mcp233-game-config-excel.txt --query 'icon_handbook_.*' --regex
+
+# 先预览完整修改前后对比；确认后再加 --apply
+mcp233-game-config-excel replace --project-config .\mcp233-game-config-excel.txt --query 'old_icon' --replacement 'new_icon'
+mcp233-game-config-excel replace --project-config .\mcp233-game-config-excel.txt --query 'old_icon' --replacement 'new_icon' --apply
+
+# 查出 string 列被 Excel 自动转日期/数字等非文本风险
+mcp233-game-config-excel check-formats --project-config .\mcp233-game-config-excel.txt
+
+# 深度自动校验。已打开 Excel 会被列出：可读不可写
+mcp233-game-config-excel deep-validate --project-config .\mcp233-game-config-excel.txt
+
+# 同一 MCP 进程内搜索缓存统计
+mcp233-game-config-excel cache
+
+# 全项目规范审计：id 唯一性、战斗原始数值 100 = 显示 1.00
+mcp233-game-config-excel validate-project --project-config .\mcp233-game-config-excel.txt
+
+# 离线自动更新：启动器自动选最新本地版本；无网络下载
+mcp233-game-config-excel update-status</code></pre>
       <p class="note">工具没有 HTTP 客户端、数据库连接、遥测或登录逻辑。MCP 仅通过 stdio 与宿主通信，文件路径由调用方提供。</p>
     </section>
 
@@ -101,8 +123,32 @@ mcp233-game-config-excel export-i18n --file .\I18nTipsConfig.xlsx --output-dir .
           <tr><td><code>config_excel_add_column</code></td><td>新增列，继承相邻样式并设置 Excel 文本格式。</td></tr>
           <tr><td><code>config_excel_delete_column</code></td><td>按字段名删除整列。</td></tr>
           <tr><td><code>config_excel_check_column_format</code></td><td>检查列位置、文本格式和异常单元格。</td></tr>
+          <tr><td><code>config_excel_search</code></td><td>递归目录搜索；支持正则、精确位置和值去重。</td></tr>
+          <tr><td><code>config_excel_replace</code></td><td>批量替换；默认预览每格修改前后，<code>apply=true</code> 才写盘。</td></tr>
+          <tr><td><code>config_excel_check_text_formats</code></td><td>检查全部 string 字段的非文本、日期自动转换风险。</td></tr>
+          <tr><td><code>config_excel_deep_validate</code></td><td>自动验证全部表结构、格式风险和 Excel 打开锁文件。</td></tr>
+          <tr><td><code>config_excel_cache</code></td><td>查看或清空进程内工作簿索引缓存。</td></tr>
+          <tr><td><code>config_excel_configure_project</code></td><td>代理对话预览/确认配置业务表目录，返回前后对比。</td></tr>
+          <tr><td><code>config_excel_validate_project</code></td><td>强制检查小写唯一 <code>id</code>，战斗数值 <code>100 → 1.00</code>，格式风险和锁定表。</td></tr>
+          <tr><td><code>config_excel_self_check</code></td><td>不写盘的 MCP 深度自检与完整规则审计。</td></tr>
+          <tr><td><code>config_excel_update_status</code></td><td>查看离线本地版本和自动选择状态；网络更新关闭。</td></tr>
+          <tr><td><code>config_excel_update_activate</code></td><td>预览/切换已构建本地版本，下次 MCP 重启生效。</td></tr>
+          <tr><td><code>config_excel_update_rollback</code></td><td>预览/回退上一版本，不删除任何二进制。</td></tr>
         </tbody>
       </table>
+    </section>
+
+    <h2>项目目录配置</h2>
+    <section>
+      <p>项目根 <code>mcp233-game-config-excel.txt</code> 指定业务配表目录。支持 properties 和 TOML；相对路径基于此文件解析。</p>
+      <pre><code>config_dirs = ["Team-Resources/BusinessConfig"]
+id_column = "id"
+battle_value_scale = 100
+battle_attribute_patterns = ["(?i)(attr|talent|speed)"]</code></pre>
+      <p>命中战斗字段规则的整数原始值固定按 <code>显示值 = 原始值 / 100</code> 解释：<code>100</code> 显示 <code>1.00</code>，<code>235</code> 显示 <code>2.35</code>。不可填写 <code>2.35</code>。</p>
+      <p>Excel 正打开时会出现 <code>~$*.xlsx</code> 锁文件。MCP 仍可搜索和检查，但所有写操作会先整体拒绝，并明确指出必须关闭的表，防止部分写入。</p>
+      <p>搜索在同一 MCP 进程内缓存未变化工作簿；文件变更或 MCP 写入自动失效。默认最多返回 100 个位置，完整命中数和值去重仍保留。</p>
+      <p>启动器只选择本机已构建的版本化二进制，不联网下载或覆盖运行中的 exe；支持自动选择最新版本、固定版本和安全回退。</p>
     </section>
 
     <h2>多语言全量与增量</h2>

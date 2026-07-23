@@ -42,6 +42,35 @@ go build -mod=vendor -o .\\dist\\mcp233-game-config-excel.exe ./cmd/mcp233-game-
 
 # 增量导出：与上一版 Excel 比较，输出 upsert 与 delete
 ./mcp233-game-config-excel.exe export-i18n --file .\I18nTipsConfig.xlsx --output-dir .\i18n-delta --format tsv --mode incremental --baseline-file .\I18nTipsConfig.previous.xlsx
+
+# 递归搜索项目业务配表；支持正则并按匹配值去重
+./mcp233-game-config-excel.exe search --project-config D:\Code\Poko-Dev-Projects\tuanjie-project-sf\mcp233-game-config-excel.txt --query 'icon_handbook_.*' --regex
+
+# 默认只预览，返回逐单元格修改前后表格；确认后才加 --apply 写入
+./mcp233-game-config-excel.exe replace --project-config D:\Code\Poko-Dev-Projects\tuanjie-project-sf\mcp233-game-config-excel.txt --query 'icon_handbook_old' --replacement 'icon_handbook_new'
+./mcp233-game-config-excel.exe replace --project-config D:\Code\Poko-Dev-Projects\tuanjie-project-sf\mcp233-game-config-excel.txt --query 'icon_handbook_old' --replacement 'icon_handbook_new' --apply
+
+# 检查所有 string 列是否被 Excel 转为日期或其它非文本单元格
+./mcp233-game-config-excel.exe check-formats --project-config D:\Code\Poko-Dev-Projects\tuanjie-project-sf\mcp233-game-config-excel.txt
+
+# 深度自动化校验：结构、字符串非文本风险、Excel 打开锁文件
+./mcp233-game-config-excel.exe deep-validate --project-config D:\Code\Poko-Dev-Projects\tuanjie-project-sf\mcp233-game-config-excel.txt
+
+# 缓存统计；同一 MCP 进程内复用未变化工作簿索引
+./mcp233-game-config-excel.exe cache
+
+# 对话代理先预览、确认后配置业务表目录
+./mcp233-game-config-excel.exe configure-project --file .\mcp233-game-config-excel.txt --config-dirs Team-Resources/BusinessConfig
+./mcp233-game-config-excel.exe configure-project --file .\mcp233-game-config-excel.txt --config-dirs Team-Resources/BusinessConfig --apply
+
+# 项目规范全量审计：固定 id、唯一性、战斗数值 100 = 游戏显示 1.00、格式与打开锁
+./mcp233-game-config-excel.exe validate-project --project-config D:\Code\Poko-Dev-Projects\tuanjie-project-sf\mcp233-game-config-excel.txt
+./mcp233-game-config-excel.exe self-check --project-config D:\Code\Poko-Dev-Projects\tuanjie-project-sf\mcp233-game-config-excel.txt
+
+# 离线自动更新：启动器自动选择已验证的最新本地版本；不从网络下载
+./mcp233-game-config-excel.exe update-status
+./mcp233-game-config-excel.exe update-activate --version auto --apply
+./mcp233-game-config-excel.exe update-rollback --apply
 ```
 
 ## 多语言导出
@@ -81,6 +110,46 @@ go build -mod=vendor -o .\\dist\\mcp233-game-config-excel.exe ./cmd/mcp233-game-
 | `config_excel_add_column` | 新增列，继承相邻单元格样式，默认使用 Excel 文本格式（写文件） |
 | `config_excel_delete_column` | 按字段名删除整列（写文件） |
 | `config_excel_check_column_format` | 检查列位置、文本格式与异常单元格 |
+| `config_excel_search` | 递归搜索目录/指定表；支持正则、命中位置和匹配值去重 |
+| `config_excel_replace` | 批量 literal/正则替换；默认预览，返回修改前后对比，`apply=true` 才写盘 |
+| `config_excel_check_text_formats` | 批量检查所有 string 字段的文本格式与日期自动转换风险 |
+| `config_excel_deep_validate` | 深度自动化验证：结构、格式风险、已打开 Excel 锁文件 |
+| `config_excel_cache` | 查看或重置 MCP 进程内工作簿索引缓存 |
+| `config_excel_configure_project` | 对话代理预览或写入业务配表目录配置；默认不写盘 |
+| `config_excel_validate_project` | 全项目规则审计：固定 `id` 唯一主键、战斗数值规则、格式和锁定表 |
+| `config_excel_self_check` | MCP 深度自检，返回完整项目规则审计结果，不写 Excel |
+| `config_excel_update_status` | 查看离线本地版本、自动选择策略；网络更新永久关闭 |
+| `config_excel_update_activate` | 预览或切换到已构建本地版本；下次 MCP 启动生效 |
+| `config_excel_update_rollback` | 预览或回退到上一已构建本地版本；不删除二进制 |
+
+## 项目目录配置
+
+在项目根放置 `mcp233-game-config-excel.txt`，搜索、替换和格式检查可通过 `projectConfig` / `--project-config` 指定。支持 properties 与 TOML 数组：
+
+```toml
+config_dirs = ["Team-Resources/BusinessConfig"]
+id_column = "id"
+battle_value_scale = 100
+battle_attribute_patterns = ["(?i)(attr|talent|speed)"]
+```
+
+也支持多行 properties：`config_dir=Team-Resources/BusinessConfig`。目录相对该 `.txt` 文件解析。
+
+Excel 被打开时通常会出现同目录 `~$*.xlsx` 锁文件。MCP 会明确列出这些表：仍可搜索/检查，但任何写入操作会在开始前整体拒绝，要求先关闭 Excel，避免部分写入。
+
+## 固定数据规范
+
+- 可导出的 config233 表唯一主键列只能叫小写 `id`；数据行不可为空，整表不可重复。
+- 列名（SERVER 或 CLIENT）含 `attr`、`talent`、`speed` 且 `TYPE=int` 的字段属于战斗属性。游戏显示值固定为 `原始值 / battle_value_scale`；默认 `100 → 1.00`。例如原始值 `235` 显示 `2.35`，禁止填写 `2.35`。
+- 字段模式只匹配 SERVER/CLIENT 名。代理应先调用 `config_excel_configure_project` 预览规则，再以 `apply=true` 写入，避免误把普通数值列作为战斗属性。
+
+## 缓存与低 token 返回
+
+`config_excel_search` 将未变化工作簿解析结果保留在 MCP 进程内；文件大小或修改时间变化、或 MCP 写入后自动失效。搜索默认最多返回 100 个位置，仍保留完整命中数和值去重；用 `maxResults` 可调整。`config_excel_cache` 可查看命中/未命中统计或重置内存缓存。
+
+## 离线自动更新
+
+MCP 不联网下载、执行远程更新或覆盖正在运行的 exe。`mcp233-game-config-excel-launcher.exe` 每次启动从同目录选择最新的 `mcp233-game-config-excel-vX.Y.Z.exe`；可用 `config_excel_update_activate` 固定版本或重新设为 `auto`，并用 `config_excel_update_rollback` 安全回退。版本选择下次 MCP 重启生效。
 
 ## config233 行格式
 
